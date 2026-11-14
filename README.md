@@ -1,55 +1,58 @@
 # ATV Remote Desktop
 
-A desktop Apple TV remote for macOS, Windows and Linux built with Tauri 2, Rust, React and TypeScript. The interface follows the supplied remote reference, with a touch surface, playback controls, text input and keyboard navigation. All application text is in English.
+A desktop Apple TV remote for macOS, Windows and Linux, built with Tauri 2, Rust and React/TypeScript. Discovery, PIN pairing, encrypted connections, playback, text input and device state run directly in Rust through [ratv](https://github.com/henrikwidlund/ratv). There is no Python runtime or helper process.
 
 ## Development
 
-Install Node.js, Rust stable and Python 3.15, plus the platform prerequisites listed at https://v2.tauri.app/start/prerequisites/. macOS requires Xcode Command Line Tools; Windows requires the C++ build tools and WebView2; Linux requires WebKitGTK 4.1 and GTK 3.
+Install Node.js, Rust stable (1.100 or newer) and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
 npm ci
-python3 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt
-npm run build:bridge
 npm run tauri dev
 ```
 
-On Windows, use `.venv\Scripts\python.exe` instead of `.venv/bin/python` in the setup commands.
-
-Development uses the project's Python environment. Set `ATV_PYTHON` to override the interpreter. macOS discovery uses the system Bonjour daemon; Windows and Linux use pyatv mDNS discovery. The current machine and loopback addresses are excluded from the device list.
-
-Release builds include a standalone Python helper, so users do not need to install Python or keep the source folder.
-
-Validated dependency versions: Tauri Rust 2.12.5, Tauri API/CLI 2.12.4, React 19.3.1, TypeScript 7.0.2, Vite 8.3.8 and pyatv 0.18.0. `srptools` is pinned to 1.0.1 because pyatv 0.18.0 is incompatible with the keyword-only API introduced in srptools 2.0 (https://github.com/postlund/pyatv/issues/2934). The npm and Cargo lockfiles record the resolved dependencies. Run `npm update` and `cargo update --manifest-path src-tauri/Cargo.toml` to update within the declared constraints.
+On macOS, use the rustup Cargo/Rust binaries ahead of an older Homebrew installation in PATH. The Rust dependency is pinned to a reviewed ratv revision; Cargo.lock and package-lock.json record all resolved dependencies.
 
 ## Usage
 
-Keep your Mac and Apple TV on the same local network. Open the device selector, select your Apple TV and enter the PIN displayed on the television. Swipe the touch surface to navigate or click to select.
+Your Mac or PC and Apple TV must be on the same local network. Select the Apple TV and enter the PIN displayed on the television once. The app remembers the last paired device and first tries its saved endpoints on startup. If a port or address changed, it rediscovers the device without discarding the pairing keys. Existing credentials from earlier pyatv-based app versions are imported when the device is rediscovered.
 
-- Arrow keys: navigate
-- Enter: select
-- Escape or Backspace: back
-- Space: play or pause
+Arrow keys navigate, Enter selects, Escape/Backspace go back, and Space plays or pauses. Swipe the touch surface to navigate or click it to select. Drag the empty top bar to move the window.
 
-Contextual controls refresh every second. Skip buttons appear only when the current media supports the corresponding operation and send an explicit ten-second interval. Text input appears only while a text field is focused on Apple TV and text replacement is available. Media information appears only when active playback metadata is available. The app does not expose an unsupported subtitles/audio menu. Volume and power support depend on the device, protocol and HDMI configuration. Unsupported operations display an error. Pairing credentials are stored in the application data directory with access restricted to the current user.
+Skip controls appear only when active media supports seeking. They send an explicit ten-second interval. Text input appears when a text field on Apple TV is focused. The information button opens actual playback metadata. Unavailable controls stay hidden. State comes from protocol updates; status reads do not perform network queries or block remote commands.
 
-## Packaging
+Pairing keys are stored in the user application data folder, with owner-only file permissions on Unix. Never publish files from that folder.
+
+## Build and validation
 
 ```sh
+cargo test --manifest-path src-tauri/Cargo.toml --locked
+cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
 npm run package
 ```
 
-This builds the standalone helper and creates the platform packages in `src-tauri/target/release/bundle`. Each platform and architecture is built on its matching runner. GitHub Actions builds macOS Apple Silicon/Intel (DMG), Windows x64 (NSIS and MSI), and Linux x64 (DEB and AppImage), checks the frozen helper IPC, and uploads installers as artifacts. Linux builds use Ubuntu 24.04 and target systems with compatible glibc and WebKitGTK.
+Build outputs are in `src-tauri/target/release/bundle`. The application executable supports `--health` for an offline packaged-runtime smoke test.
 
-For local macOS signing, set `APPLE_SIGNING_IDENTITY` to an installed Apple-issued code-signing certificate before `npm run package`; the same identity signs both the helper and the app. CI currently produces unsigned packages. Developer ID distribution signing and notarization require CI certificate secrets and are not configured.
+GitHub Actions builds macOS Apple Silicon/Intel (DMG), Windows x64 (NSIS/MSI) and Linux x64 (DEB/AppImage). Each platform runs native Rust tests, lint checks and a packaged-executable smoke test. Linux packages target systems compatible with Ubuntu 24.04's glibc and WebKitGTK 4.1.
 
-## Validation
+## macOS signing
 
-The frontend production build, Rust checks and standalone helper discovery have been tested locally. The packaged app opens successfully. The packaged macOS app discovers Living Room through Bonjour. macOS Local Network permission is required for device connections. PIN pairing and physical Apple TV commands have not yet been verified. Windows/Linux installers must be validated on their CI runners and with physical devices on those platforms.
+Local signing uses an installed Apple-issued certificate:
+
+```sh
+APPLE_SIGNING_IDENTITY='Your signing identity' npm run package
+```
+
+For CI signing configure these repository secrets:
+
+- `APPLE_CERTIFICATE_BASE64`: exported code-signing identity as a base64-encoded PKCS#12 file, including its private key.
+- `APPLE_CERTIFICATE_PASSWORD`: the PKCS#12 export password.
+- `APPLE_SIGNING_IDENTITY`: the exact certificate identity.
+
+Tagged macOS builds fail when signing secrets are missing, instead of silently producing an unsigned release. Branch/PR builds can compile unsigned. Public distribution should use a Developer ID Application certificate and notarization; notarization credentials are not configured yet. macOS Local Network permission is still required even for signed apps.
 
 ## References
 
-- https://github.com/bsharper/atv-desktop-remote
-- https://github.com/ismkdc/openwrt-manager
-- https://pyatv.dev
+- [ratv: Rust Apple TV protocol implementation](https://github.com/henrikwidlund/ratv)
+- [Original interface inspiration](https://github.com/bsharper/atv-desktop-remote)
+- [CI structure reference](https://github.com/ismkdc/openwrt-manager)

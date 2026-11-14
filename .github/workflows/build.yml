@@ -39,10 +39,6 @@ jobs:
         with:
           node-version: latest
           cache: npm
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.15'
-          cache: pip
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -52,10 +48,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2t64
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -r requirements.txt
-      - run: python -m pip check
-      - run: python -m unittest discover -s tests -v
       - run: npm ci
       - name: Require macOS signing for tagged releases
         if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v')
@@ -87,15 +79,20 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH" "$HOME/Library/Keychains/login.keychain-db"
           rm "$CERTIFICATE_PATH"
-      - run: npm run build:bridge
-      - name: Smoke test the bundled helper
         run: python scripts/test-bundle.py
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
       - name: Build installers
         run: npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
         env:
           NO_STRIP: 'true'
+      - name: Smoke test native executable (Unix)
+        if: runner.os != 'Windows'
+        run: ./src-tauri/target/${{ matrix.target }}/release/atv-remote --health
+      - name: Smoke test native executable (Windows)
+        if: runner.os == 'Windows'
+        run: ./src-tauri/target/${{ matrix.target }}/release/atv-remote.exe --health
       - uses: actions/upload-artifact@v7
         with:
           name: atv-remote-desktop-${{ matrix.target }}

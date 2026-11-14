@@ -6,3 +6,5 @@
 .round{padding:0}.transport .round svg{width:28px;height:28px}.transport .skip svg{overflow:visible;stroke-width:2}.transport{padding:10px 24px 18px;column-gap:0}.transport .round{width:36px;height:36px}footer{padding:9px 14px 0;gap:14px}footer>.round{width:84px;height:84px}footer .back svg{width:45px;height:45px;stroke-width:1.9}footer>.round>svg{width:31px;height:31px}.playpause{gap:1px;align-items:center}.playpause svg{width:17px;height:22px}.sheet input:not([inputmode="numeric"]){letter-spacing:normal;font-size:17px;text-align:left}.sheet{max-height:calc(100vh - 44px);overflow:auto}
 
 .drag{z-index:2;height:54px;cursor:default;user-select:none;-webkit-user-select:none}.remote{user-select:none;-webkit-user-select:none}
+
+footer>.round.back{width:130px;height:130px}
