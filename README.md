@@ -6,6 +6,8 @@ A desktop Apple TV remote for macOS, Windows and Linux, built with Tauri 2, Rust
   <img src="docs/images/macos-remote.png" alt="ATV Remote Desktop connected to an Apple TV, with contextual ten-second seek controls" width="360">
 </p>
 
+[Download the latest release](https://github.com/ismkdc/atv-remote-desktop/releases/latest) · macOS, Windows and Linux installers
+
 ## Development
 
 Install Node.js, Rust stable (1.100 or newer) and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
