@@ -1,0 +1,5 @@
+pyatv==0.18.0
+pyinstaller==6.22.3
+# pyatv 0.18.0 uses positional SRP arguments; 2.0 made them keyword-only.
+# https://github.com/postlund/pyatv/issues/2934
+srptools==1.0.1

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.venv/
+work/
+__pycache__/
+*.pyc
+src-tauri/target/
+src-tauri/binaries/
+.DS_Store
