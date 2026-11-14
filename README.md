@@ -2,6 +2,10 @@
 
 A desktop Apple TV remote for macOS, Windows and Linux, built with Tauri 2, Rust and React/TypeScript. Discovery, PIN pairing, encrypted connections, playback, text input and device state run directly in Rust through [ratv](https://github.com/henrikwidlund/ratv). There is no Python runtime or helper process.
 
+<p align="center">
+  <img src="docs/images/macos-remote.png" alt="ATV Remote Desktop connected to an Apple TV, with contextual ten-second seek controls" width="360">
+</p>
+
 ## Development
 
 Install Node.js, Rust stable (1.100 or newer) and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
