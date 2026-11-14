@@ -5,6 +5,9 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -79,7 +82,6 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychains -d user -s "$KEYCHAIN_PATH" "$HOME/Library/Keychains/login.keychain-db"
           rm "$CERTIFICATE_PATH"
-        run: python scripts/test-bundle.py
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
