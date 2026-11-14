@@ -128,9 +128,13 @@ jobs:
         shell: bash
         run: |
           mkdir release
-          find artifacts -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.deb' -o -name '*.AppImage' \) -exec cp {} release/ \;
+          while IFS= read -r -d '' installer; do
+            name="$(basename "$installer")"
+            cp "$installer" "release/${name// /.}"
+          done < <(find artifacts -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msi' -o -name '*.deb' -o -name '*.AppImage' \) -print0)
           cd release
-          sha256sum ./* > SHA256SUMS
+          sha256sum ./* > "$RUNNER_TEMP/SHA256SUMS"
+          mv "$RUNNER_TEMP/SHA256SUMS" ./SHA256SUMS
       - name: Publish downloadable installers
         env:
           GH_TOKEN: ${{ github.token }}

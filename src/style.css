@@ -8,3 +8,5 @@
 .drag{z-index:2;height:54px;cursor:default;user-select:none;-webkit-user-select:none}.remote{user-select:none;-webkit-user-select:none}
 
 footer>.round.back{width:130px;height:130px}
+
+.apple-tv{display:inline-flex;align-items:center;justify-content:center;width:28px;height:20px;padding:1px 2px;flex-shrink:0}.apple-tv svg{width:24px;height:18px;display:block}

@@ -1,6 +1,6 @@
 [package]
 name = "atv-remote"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 rust-version = "1.100"
 [build-dependencies]
@@ -14,3 +14,5 @@ serde = { version = "1", features = ["derive"] }
 ratv = { git = "https://github.com/henrikwidlund/ratv", rev = "48cc6cdca0437ccaa52cba026d4759e62dbee205" }
 if-addrs = "0.15"
 tempfile = "3"
+
+mdns-sd = "0.21.7"

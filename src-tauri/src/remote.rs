@@ -1,3 +1,4 @@
+use crate::network_discovery::{self, Browser};
 use ratv::companion::{Event, MediaControlFlags};
 use ratv::discovery::{self, ScanOptions};
 use ratv::mrp::{Command, PlaybackState};
@@ -19,6 +20,14 @@ use std::{
     time::Duration,
 };
 use tokio::{sync::Mutex, task::JoinHandle, time::timeout};
+
+/// Each discovery layer gets a short window; the next layer takes over when a
+/// firewall or access point drops that kind of traffic.
+const DISCOVERY_WAIT: Duration = Duration::from_millis(1500);
+/// A unicast mDNS query is answered on a LAN within milliseconds. The extra
+/// time covers duplicate-question suppression, which can delay a repeat answer
+/// by a second when another discovery layer just queried the same records.
+const SWEEP_WAIT: Duration = Duration::from_millis(1200);
 
 #[derive(Clone, Serialize, Deserialize)]
 struct Device {
@@ -66,6 +75,7 @@ impl Drop for Session {
 #[derive(Default)]
 pub struct Remote {
     path: Option<PathBuf>,
+    browser: Option<Browser>,
     saved: Saved,
     found: BTreeMap<String, Device>,
     pairing: Option<(String, PinPrompt)>,
@@ -126,67 +136,63 @@ impl Remote {
         })
     }
     async fn scan(&mut self, wanted: Option<&str>) -> Result<Value, String> {
-        let mut options = ScanOptions::default();
-        options.timeout = Duration::from_secs(3);
-        if let Some(id) = wanted {
-            let address = self.saved.devices.get(id).map(|d| d.address).or_else(|| {
-                let v: Value = serde_json::from_slice(
-                    &fs::read(self.path.as_ref()?.join("preferences.json")).ok()?,
-                )
-                .ok()?;
-                v.get("last_address")?.as_str()?.parse().ok()
-            });
-            if let Some(address) = address {
-                options.targets = vec![SocketAddr::new(address, 5353)];
+        let interfaces = if_addrs::get_if_addrs().unwrap_or_default();
+        let own = network_discovery::own_addresses(&interfaces);
+        let mut devices = Vec::new();
+        if let Some(address) = wanted.and_then(|id| self.saved.devices.get(id).map(|d| d.address)) {
+            let mut options = ScanOptions::default();
+            options.timeout = DISCOVERY_WAIT;
+            options.targets = vec![SocketAddr::new(address, discovery::MDNS_PORT)];
+            devices = network_discovery::scan_direct(&options, &own).await;
+        }
+        if devices.is_empty() {
+            if self.browser.is_none() {
+                self.browser = Browser::new().ok();
             }
+            let browser = &mut self.browser;
+            let cached = async {
+                match browser {
+                    Some(browser) => browser
+                        .scan(wanted, &own, DISCOVERY_WAIT)
+                        .await
+                        .unwrap_or_default(),
+                    None => Vec::new(),
+                }
+            };
+            let multicast = network_discovery::scan_interfaces(&interfaces, &own, DISCOVERY_WAIT);
+            let (mut cached, multicast) = tokio::join!(cached, multicast);
+            cached.extend(multicast);
+            devices = cached;
         }
-        let devices = if let Some(id) = wanted {
-            discovery::scan_until(&options, |d| {
-                d.identifier() == Some(id) && Endpoints::from(d).companion.is_some()
-            })
-            .await
-        } else {
-            discovery::scan(&options).await
+        if devices.is_empty() {
+            devices = network_discovery::sweep_interfaces(&interfaces, &own, SWEEP_WAIT).await;
         }
-        .map_err(|e| e.to_string())?;
-        let own = if_addrs::get_if_addrs()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|i| i.ip())
-            .collect::<Vec<_>>();
         self.found.clear();
         for device in devices {
-            let Some(address) = device.addresses.first().copied() else {
-                continue;
-            };
-            if address.is_loopback()
-                || own.contains(&address)
-                || device.model().is_some_and(|m| !m.starts_with("AppleTV"))
-            {
-                continue;
-            }
-            let endpoints = Endpoints::from(&device);
-            if endpoints.companion.is_none() && endpoints.airplay.is_none() {
-                continue;
-            }
-            let id = device.identifier().unwrap_or(&device.host).to_owned();
             let credentials = self
                 .saved
                 .devices
-                .get(&id)
+                .get(&device.id)
                 .and_then(|d| d.credentials.clone())
-                .or_else(|| self.legacy(&id));
-            self.found.insert(
-                id.clone(),
-                Device {
-                    id,
-                    name: device.name().into(),
-                    address,
-                    companion: endpoints.companion,
-                    airplay: endpoints.airplay,
+                .or_else(|| self.legacy(&device.id));
+            self.found
+                .entry(device.id.clone())
+                .and_modify(|d| {
+                    if device.companion.is_some() {
+                        d.companion = device.companion;
+                    }
+                    if device.airplay.is_some() {
+                        d.airplay = device.airplay;
+                    }
+                })
+                .or_insert(Device {
+                    id: device.id,
+                    name: device.name,
+                    address: device.address,
+                    companion: device.companion,
+                    airplay: device.airplay,
                     credentials,
-                },
-            );
+                });
         }
         Ok(json!({"devices":self.found.values().map(Device::public).collect::<Vec<_>>()}))
     }

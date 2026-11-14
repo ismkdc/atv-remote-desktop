@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod network_discovery;
 mod remote;
 use tauri::Manager;
 #[tauri::command]

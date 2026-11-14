@@ -21,7 +21,9 @@ On macOS, use the rustup Cargo/Rust binaries ahead of an older Homebrew installa
 
 ## Usage
 
-Your Mac or PC and Apple TV must be on the same local network. Select the Apple TV and enter the PIN displayed on the television once. The app remembers the last paired device and first tries its saved endpoints on startup. If a port or address changed, it rediscovers the device without discarding the pairing keys. Existing credentials from earlier pyatv-based app versions are imported when the device is rediscovered.
+Your computer and Apple TV must be on the same local network. Select the Apple TV and enter the PIN displayed on the television once. Discovery joins the mDNS group on every network interface, falls back to per-interface queries, and finally sweeps the local subnet with unicast queries when multicast is filtered. On Windows, allow the app on private networks if Windows Firewall asks.
+
+The app remembers the last paired device and first tries its saved endpoints on startup. If a port or address changed, it rediscovers the device without discarding the pairing keys. Existing credentials from earlier pyatv-based app versions are imported when the device is rediscovered.
 
 Arrow keys navigate, Enter selects, Escape/Backspace go back, and Space plays or pauses. Swipe the touch surface to navigate or click it to select. Drag the empty top bar to move the window.
 
